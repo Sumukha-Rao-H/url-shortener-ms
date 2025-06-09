@@ -1,4 +1,4 @@
-# URL Shortener Microservice (README 1.4)
+# URL Shortener Microservice (README 1.4.1)
 
 This is a basic microservice-based URL shortener project built with:
 
@@ -69,4 +69,4 @@ This is a basic microservice-based URL shortener project built with:
 
 🔗 GET /r/{shortcode}
 
-    curl -X POST http://localhost:8080/r/{short_url}
+    curl -v http://localhost:8080/r/{short_url}
