@@ -1,54 +1,74 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/json"
+	"context"
 	"fmt"
+	"log"
 	"net/http"
+	"os"
+	"time"
+	"github.com/jackc/pgx/v5"
+	"github.com/google/uuid"
 )
 
-var urlMap = make(map[string]string)
+var db *pgx.Conn
 
-type shortenRequest struct {
-	URL string `json:"url"`
+func main() {
+	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
+		getEnv("DB_USER", "postgres"),
+		getEnv("DB_PASSWORD", "password"),
+		getEnv("DB_HOST", "localhost"),
+		getEnv("DB_PORT", "5432"),
+		getEnv("DB_NAME", "shortener_db"),
+	)
+
+	var err error
+	db, err = pgx.Connect(context.Background(), dbURL)
+	if err != nil {
+		log.Fatalf("DB connection error: %v\n", err)
+	}
+	defer db.Close(context.Background())
+
+	http.HandleFunc("/shorten", shortenHandler)
+	fmt.Println("Shortener running on :8081")
+	log.Fatal(http.ListenAndServe(":8081", nil))
 }
 
-type shortenResponse struct {
-	ShortURL string `json:"short_url"`
+func getEnv(key, fallback string) string {
+	val := os.Getenv(key)
+	if val == "" {
+		return fallback
+	}
+	return val
 }
 
 func shortenHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Only POST method is supported", http.StatusMethodNotAllowed)
+	originalURL := r.URL.Query().Get("url")
+	if originalURL == "" {
+		http.Error(w, "Missing 'url' parameter", http.StatusBadRequest)
 		return
 	}
 
-	var req shortenRequest
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil || req.URL == "" {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
+	short := generateShortURL(originalURL)
+
+	err := saveToDB(originalURL, short)
+	if err != nil {
+		log.Printf("DB Error: %v\n", err)
+		http.Error(w, "Failed to save to DB", http.StatusInternalServerError)
 		return
 	}
 
-	// Generate a SHA-256 hash
-	hash := sha256.Sum256([]byte(req.URL))
-
-	// Base64 encode and take only first 6 chars
-	encoded := base64.URLEncoding.EncodeToString(hash[:])
-	short := encoded[:6]
-
-	// Save mapping
-	urlMap[short] = req.URL
-
-	// Return short URL (for now, just return the code)
-	resp := shortenResponse{ShortURL: fmt.Sprintf("http://localhost:8082/r/%s", short)}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	fmt.Fprintf(w, "Shortened URL: http://localhost:8082/%s", short)
 }
 
-func main() {
-	http.HandleFunc("/shorten", shortenHandler)
-	fmt.Println("Shortener service running on :8080")
-	http.ListenAndServe(":8080", nil)
+func saveToDB(originalURL, shortURL string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := db.Exec(ctx, "INSERT INTO urls (original_url, short_url) VALUES ($1, $2)", originalURL, shortURL)
+	return err
+}
+
+func generateShortURL(input string) string {
+    return uuid.New().String()[:6]
 }

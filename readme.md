@@ -48,24 +48,27 @@ This is a basic microservice-based URL shortener project built with:
 - Docker Compose  
 - Go (only for local development)
 
+### Initialize Go Modules
+
+    cd shortener
+    go mod init shortener
+
+    cd ../redirector
+    go mod init redirector
+
 ### 🔧 Build and Run (via Docker Compose)
 
-```bash
-docker compose up --build
-```
+    docker compose up --build
+
 
 ### 📬 API Usage
 
 🔗 POST /shorten
 
-```bash
-curl -X POST http://localhost:8081/shorten \
-  -H "Content-Type: application/json" \
-  -d '{"url": "https://example.com"}'
-```
+    curl -X POST http://localhost:8080/shorten \
+      -H "Content-Type: application/json" \
+      -d '{"url": "https://example.com"}'
 
 🔗 GET /r/{shortcode}
 
-```bash
-curl -X POST http://localhost:8081/r/{shortcode}
-```
+    curl -X POST http://localhost:8080/r/{short_url}
