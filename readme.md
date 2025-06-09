@@ -1,11 +1,11 @@
-# URL Shortener Microservice (README 1.4.1)
+# URL Shortener Microservice (README 1.4.2)
 
 This is a basic microservice-based URL shortener project built with:
 
 - 🐳 Docker  
 - 🏗️ Docker Compose  
 - 🐹 Go (Golang)  
-- 🌐 NGINX (coming soon)  
+- 🌐 NGINX  
 - 🧠 Redis Pub/Sub (coming soon)  
 - ⛵ Kubernetes (coming soon)  
 
