@@ -51,26 +51,20 @@ url-shortener-ms/
 
 ```bash
 docker compose up --build
+```
 
-📬 API Usage
+### 📬 API Usage
+
 🔗 POST /shorten
-URL: http://localhost:8081/shorten
 
-Method: POST
+```bash
+curl -X POST http://localhost:8081/shorten \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com"}'
+```
 
-Request Body:
+🔗 GET /r/{shortcode}
 
-json
-Copy
-Edit
-{
-  "url": "https://example.com"
-}
-Response:
-
-json
-Copy
-Edit
-{
-  "short_url": "http://localhost:8082/r/abc123"
-}
+```bash
+curl -X POST http://localhost:8081/r/{shortcode}
+```
