@@ -1,13 +1,14 @@
-# URL Shortener Microservice (README 1.4.2)
+# URL Shortener Microservice (README 1.4.3)
 
 This is a basic microservice-based URL shortener project built with:
 
 - 🐳 Docker  
 - 🏗️ Docker Compose  
 - 🐹 Go (Golang)  
-- 🌐 NGINX  
+- 🌐 NGINX
+- 🐘 PostgreSQL
 - 🧠 Redis Pub/Sub (coming soon)  
-- ⛵ Kubernetes (coming soon)  
+- ⛵ Kubernetes (coming soon)
 
 ---
 
@@ -29,14 +30,22 @@ This is a basic microservice-based URL shortener project built with:
 
 ## 📁 Folder Structure
 
-    url-shortener-ms/
+        .
     ├── docker-compose.yml
-    ├── shortener/
-    │ ├── Dockerfile
-    │ └── main.go
-    ├── redirector/
-    │ ├── Dockerfile
-    │ └── main.go
+    ├── nginx
+    │   ├── Dockerfile
+    │   └── nginx.conf
+    ├── readme.md
+    ├── redirector
+    │   ├── Dockerfile
+    │   ├── go.mod
+    │   ├── go.sum
+    │   └── main.go
+    └── shortener
+        ├── Dockerfile
+        ├── go.mod
+        ├── go.sum
+        └── main.go
 
 ---
 
