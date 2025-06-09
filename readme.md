@@ -29,14 +29,14 @@ This is a basic microservice-based URL shortener project built with:
 
 ## 📁 Folder Structure
 
-url-shortener-ms/
-├── docker-compose.yml
-├── shortener/
-│ ├── Dockerfile
-│ └── main.go
-├── redirector/
-│ ├── Dockerfile
-│ └── main.go
+    url-shortener-ms/
+    ├── docker-compose.yml
+    ├── shortener/
+    │ ├── Dockerfile
+    │ └── main.go
+    ├── redirector/
+    │ ├── Dockerfile
+    │ └── main.go
 
 ---
 
