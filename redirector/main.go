@@ -1,17 +1,30 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
-	"os"
 	"net/http"
+	"os"
 	"strings"
 
 	_ "github.com/lib/pq"
+	"github.com/segmentio/kafka-go"
 )
 
+var kafkaWriter *kafka.Writer
+
 func main() {
+
+	//Setup Kafka writer
+	kafkaWriter = kafka.NewWriter(kafka.WriterConfig{
+		Brokers:  []string{getEnv("KAFKA_BROKER", "localhost:9092")},
+		Topic:    "url_redirected",
+		Balancer: &kafka.LeastBytes{},
+	})
+	defer kafkaWriter.Close()
+
 	// Setup DB connection (adjust these with your actual credentials)
 	connStr := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s sslmode=disable",
@@ -47,10 +60,27 @@ func main() {
 			return
 		}
 
+		//send analytics message
+		msg := kafka.Message{
+			Key:   []byte(shortCode),
+			Value: []byte(fmt.Sprintf("Redirected to: %s", originalURL)),
+		}
+		if err := kafkaWriter.WriteMessages(context.Background(), msg); err != nil {
+			log.Println("Failed to publish Kafka message:", err)
+		}
+
 		// Redirect to original URL
 		http.Redirect(w, r, originalURL, http.StatusFound)
 	})
 
 	fmt.Println("Redirector running on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+func getEnv(key, fallback string) string {
+	val := os.Getenv(key)
+	if val == "" {
+		return fallback
+	}
+	return val
 }

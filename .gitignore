@@ -1,3 +1,5 @@
 .env
 shortener/.env
 redirector/.env
+
+commands.txt
