@@ -60,10 +60,10 @@ func main() {
 			return
 		}
 
-		//send analytics message
+		// send analytics message (include short_url)
 		msg := kafka.Message{
 			Key:   []byte(shortCode),
-			Value: []byte(fmt.Sprintf("Redirected to: %s", originalURL)),
+			Value: []byte(shortCode),
 		}
 		if err := kafkaWriter.WriteMessages(context.Background(), msg); err != nil {
 			log.Println("Failed to publish Kafka message:", err)
