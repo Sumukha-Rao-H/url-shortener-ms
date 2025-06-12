@@ -4,6 +4,8 @@ services:
 
   shortener:
     build: ./shortener
+    environment:
+      - TZ=Asia/Kolkata
     container_name: shortener
     env_file:
       - .env
@@ -15,6 +17,8 @@ services:
 
   redirector:
     build: ./redirector
+    environment:
+      - TZ=Asia/Kolkata
     container_name: redirector
     env_file:
       - .env
@@ -24,6 +28,8 @@ services:
 
   analytics:
     build: ./analytics
+    environment:
+      - TZ=Asia/Kolkata
     container_name: analytics
     depends_on:
       - kafka
@@ -42,6 +48,8 @@ services:
 
   postgres:
     image: postgres:15
+    environment:
+      - TZ=Asia/Kolkata
     container_name: postgres
     env_file:
       - .env

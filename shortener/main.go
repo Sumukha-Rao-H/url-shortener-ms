@@ -17,8 +17,7 @@ var db *pgx.Conn
 var kafkaWriter *kafka.Writer
 
 func main() {
-
-	//kafka writer setup
+	// Kafka writer setup
 	kafkaWriter = kafka.NewWriter(kafka.WriterConfig{
 		Brokers:  []string{getEnv("KAFKA_BROKER", "localhost:9092")},
 		Topic:    "url_created",
@@ -26,7 +25,7 @@ func main() {
 	})
 	defer kafkaWriter.Close()
 
-	//db setup
+	// DB connection setup
 	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
 		getEnv("DB_USER", "postgres"),
 		getEnv("DB_PASSWORD", "password"),
@@ -42,7 +41,9 @@ func main() {
 	}
 	defer db.Close(context.Background())
 
+	// HTTP route
 	http.HandleFunc("/shorten", shortenHandler)
+
 	fmt.Println("Shortener running on :8081")
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }
@@ -64,36 +65,46 @@ func shortenHandler(w http.ResponseWriter, r *http.Request) {
 
 	short := generateShortURL(originalURL)
 
-	err := saveToDB(originalURL, short)
+	shortURL, err := saveToDB(originalURL, short)
 	if err != nil {
 		log.Printf("DB Error: %v\n", err)
 		http.Error(w, "Failed to save to DB", http.StatusInternalServerError)
 		return
 	}
 
-	fmt.Fprintf(w, "Shortened URL: http://localhost:8082/%s", short)
+	fmt.Fprintf(w, "Shortened URL: http://localhost:8082/%s", shortURL)
 }
 
-func saveToDB(originalURL, shortURL string) error {
+func saveToDB(originalURL, shortURL string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := db.Exec(ctx, "INSERT INTO urls (original_url, short_url) VALUES ($1, $2)", originalURL, shortURL)
-
-	if err != nil {
-		return err
+	// Check if URL already exists
+	var existingShortURL string
+	err := db.QueryRow(ctx, "SELECT short_url FROM urls WHERE original_url = $1", originalURL).Scan(&existingShortURL)
+	if err == nil {
+		log.Printf("URL already exists. Returning existing short URL: %s\n", existingShortURL)
+		return existingShortURL, nil
+	} else if err != pgx.ErrNoRows {
+		return "", err
 	}
 
+	// Insert new URL
+	_, err = db.Exec(ctx, "INSERT INTO urls (original_url, short_url) VALUES ($1, $2)", originalURL, shortURL)
+	if err != nil {
+		return "", err
+	}
+
+	// Publish to Kafka
 	msg := kafka.Message{
 		Key:   []byte(shortURL),
 		Value: []byte(originalURL),
 	}
 	if err := kafkaWriter.WriteMessages(context.Background(), msg); err != nil {
 		log.Println("Failed to publish Kafka message:", err)
-		// You can choose to return the error if Kafka publishing is critical
 	}
 
-	return nil
+	return shortURL, nil
 }
 
 func generateShortURL(input string) string {
