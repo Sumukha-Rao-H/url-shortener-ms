@@ -10,13 +10,29 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/redis/go-redis/v9"
 	"github.com/segmentio/kafka-go"
 )
 
 var db *pgx.Conn
 var kafkaWriter *kafka.Writer
+var rdb *redis.Client
+var ctx = context.Background()
 
 func main() {
+	//redis initialization
+	rdb = redis.NewClient(&redis.Options{
+		Addr:     getEnv("REDIS_ADDR", "redis:6379"),
+		Password: "", // No password by default
+		DB:       0,
+	})
+
+	if _, err := rdb.Ping(ctx).Result(); err != nil {
+		log.Fatalf("Redis connection error: %v\n", err)
+	}
+
+	defer rdb.Close()
+
 	// Kafka writer setup
 	kafkaWriter = kafka.NewWriter(kafka.WriterConfig{
 		Brokers:  []string{getEnv("KAFKA_BROKER", "localhost:9092")},
@@ -63,14 +79,35 @@ func shortenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Redis key: freq:original_url -> frequency
+	// Redis key: cache:original_url -> short_url
+	freqKey := fmt.Sprintf("freq:%s", originalURL)
+	cacheKey := fmt.Sprintf("cache:%s", originalURL)
+
+	// Check if it's cached
+	if cachedShort, err := rdb.Get(ctx, cacheKey).Result(); err == nil {
+		// Increase access frequency
+		rdb.Incr(ctx, freqKey)
+		fmt.Fprintf(w, "Shortened URL (cache): http://localhost:8082/%s", cachedShort)
+		return
+	}
+
+	// Generate new short URL
 	short := generateShortURL(originalURL)
 
+	// Save to DB and publish to Kafka
 	shortURL, err := saveToDB(originalURL, short)
 	if err != nil {
 		log.Printf("DB Error: %v\n", err)
 		http.Error(w, "Failed to save to DB", http.StatusInternalServerError)
 		return
 	}
+
+	// Track frequency
+	rdb.Incr(ctx, freqKey)
+
+	// Cache the result with TTL (Redis LRU policy handles eviction)
+	rdb.Set(ctx, cacheKey, shortURL, 24*time.Hour)
 
 	fmt.Fprintf(w, "Shortened URL: http://localhost:8082/%s", shortURL)
 }
