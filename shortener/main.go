@@ -11,11 +11,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
-	"github.com/segmentio/kafka-go"
 )
 
 var db *pgx.Conn
-var kafkaWriter *kafka.Writer
 var rdb *redis.Client
 var ctx = context.Background()
 
@@ -32,14 +30,6 @@ func main() {
 	}
 
 	defer rdb.Close()
-
-	// Kafka writer setup
-	kafkaWriter = kafka.NewWriter(kafka.WriterConfig{
-		Brokers:  []string{getEnv("KAFKA_BROKER", "localhost:9092")},
-		Topic:    "url_created",
-		Balancer: &kafka.LeastBytes{},
-	})
-	defer kafkaWriter.Close()
 
 	// DB connection setup
 	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
@@ -130,15 +120,6 @@ func saveToDB(originalURL, shortURL string) (string, error) {
 	_, err = db.Exec(ctx, "INSERT INTO urls (original_url, short_url) VALUES ($1, $2)", originalURL, shortURL)
 	if err != nil {
 		return "", err
-	}
-
-	// Publish to Kafka
-	msg := kafka.Message{
-		Key:   []byte(shortURL),
-		Value: []byte(originalURL),
-	}
-	if err := kafkaWriter.WriteMessages(context.Background(), msg); err != nil {
-		log.Println("Failed to publish Kafka message:", err)
 	}
 
 	return shortURL, nil
