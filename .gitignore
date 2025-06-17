@@ -3,3 +3,5 @@ shortener/.env
 redirector/.env
 
 commands.txt
+
+node_modules
